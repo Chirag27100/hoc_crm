@@ -384,6 +384,48 @@
     .cf-bar-expense{background:rgba(139,46,46,.35);transition:height 0.5s ease;min-height:2px;flex:1}
     .cf-bar-withdraw{background:rgba(122,90,30,.4);transition:height 0.5s ease;min-height:2px;flex:1}
 
+    /* ── REIMBURSEMENT STYLES ── */
+    .pill-reimb-pending{color:#5A4A8A;border-color:rgba(90,74,138,.3);background:rgba(90,74,138,.07)}
+    .pill-reimb-pending::before{background:#5A4A8A}
+    .pill-reimb-approved{color:var(--success);border-color:rgba(46,94,58,.3);background:rgba(46,94,58,.07)}
+    .pill-reimb-approved::before{background:var(--success)}
+    .pill-reimb-rejected{color:var(--danger);border-color:rgba(139,46,46,.3);background:rgba(139,46,46,.07)}
+    .pill-reimb-rejected::before{background:var(--danger)}
+
+    .payer-badge{
+      display:inline-flex;align-items:center;gap:3px;
+      padding:2px 6px;font-size:7.5px;letter-spacing:1px;
+      text-transform:uppercase;font-weight:600;border:1px solid;
+      margin-bottom:3px;
+    }
+    .payer-company{color:#4A7FA5;border-color:rgba(74,127,165,.3);background:rgba(74,127,165,.07)}
+    .payer-individual{color:#5A4A8A;border-color:rgba(90,74,138,.3);background:rgba(90,74,138,.07)}
+    .payer-liability{color:var(--warn);border-color:rgba(122,90,30,.3);background:rgba(122,90,30,.07)}
+
+    /* ── REIMBURSEMENT TAB SUMMARY ── */
+    .reimb-summary{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+      background:var(--rule);border:1px solid var(--rule);margin-bottom:20px;
+    }
+    .reimb-sum-card{background:var(--bg-warm);padding:14px 16px}
+    .reimb-sum-label{font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px}
+    .reimb-sum-val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:var(--ink)}
+
+    /* ── COLLAPSIBLE PAYER GROUPS ── */
+    .payer-group-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 16px;background:var(--card-deep);cursor:pointer;
+      border-bottom:1px solid var(--rule);user-select:none;
+      transition:background 0.15s;
+    }
+    .payer-group-header:hover{background:var(--card-hover)}
+    .payer-group-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:var(--ink-mid);display:flex;align-items:center;gap:10px}
+    .payer-group-meta{font-size:10px;color:var(--ink-muted);display:flex;align-items:center;gap:12px}
+    .payer-group-chevron{font-size:10px;color:var(--ink-muted);transition:transform 0.2s}
+    .payer-group-chevron.open{transform:rotate(180deg)}
+    .payer-group-rows{display:none}
+    .payer-group-rows.open{display:table-row-group}
+
     @keyframes loadpulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}
 
     @media(max-width:1100px){
@@ -497,6 +539,24 @@
         </select>
       </div>
     </div>
+    <div class="row-2">
+      <div class="fg">
+        <label class="fl">Expense Type</label>
+        <select class="fs" id="edit-exptype" onchange="toggleEditReimb()">
+          <option value="company">Company</option>
+          <option value="individual">Individual</option>
+        </select>
+      </div>
+      <div class="fg" id="edit-reimb-wrap">
+        <label class="fl">Reimbursement</label>
+        <select class="fs" id="edit-reimb-status">
+          <option value="none">None</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+    </div>
     <button class="btn-primary" onclick="saveEdit()">Save Changes</button>
     <button class="btn-secondary" onclick="closeModal()">Cancel</button>
   </div>
@@ -576,14 +636,30 @@
         <input class="fi" type="number" id="f-amount" placeholder="0" min="0"/>
       </div>
     </div>
-    <div class="fg">
-      <label class="fl" for="f-paidby">Paid By</label>
-      <select class="fs" id="f-paidby">
-        <option>Company Account</option>
-        <option>Chirag — Personal</option>
-        <option>Dhanush — Personal</option>
-        <option>Cash</option>
-        <option>Credit Card</option>
+    <div class="row-2">
+      <div class="fg">
+        <label class="fl" for="f-paidby">Paid By</label>
+        <select class="fs" id="f-paidby" onchange="updateExpenseType()">
+          <option value="Company Account">Company Account</option>
+          <option value="Chirag — Personal">Chirag — Personal</option>
+          <option value="Dhanush — Personal">Dhanush — Personal</option>
+          <option value="Cash">Cash</option>
+          <option value="Credit Card">Credit Card</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl" for="f-exptype">Expense Type</label>
+        <select class="fs" id="f-exptype">
+          <option value="company">Company</option>
+          <option value="individual">Individual</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg" id="f-reimb-wrap" style="display:none">
+      <label class="fl">Reimbursement</label>
+      <select class="fs" id="f-reimb">
+        <option value="none">Not Requested</option>
+        <option value="pending">Request Reimbursement</option>
       </select>
     </div>
     <button class="btn-primary" onclick="addExpense()">+ Add Expense</button>
@@ -691,25 +767,26 @@
           <div class="kpi-sub" id="kpi-withdraw-sub">0 withdrawals</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Approved Expenses</div>
-          <div class="kpi-val" id="kpi-approved">₹ 0</div>
-          <div class="kpi-sub" id="kpi-approved-sub">0 cleared</div>
+          <div class="kpi-label">Company Expenses (Confirmed)</div>
+          <div class="kpi-val" id="kpi-company-exp">₹ 0</div>
+          <div class="kpi-sub" id="kpi-company-exp-sub">Direct + reimbursed</div>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Pending Review</div>
-          <div class="kpi-val" id="kpi-pending">₹ 0</div>
-          <div class="kpi-sub" id="kpi-pending-sub">0 awaiting</div>
+        <div class="kpi-card" style="border-left:3px solid rgba(90,74,138,.3)">
+          <div class="kpi-label">Outstanding Liability</div>
+          <div class="kpi-val" id="kpi-liability" style="color:#5A4A8A">₹ 0</div>
+          <div class="kpi-sub" id="kpi-liability-sub">Individual expenses — pending reimbursement</div>
         </div>
         <div class="kpi-card" id="kpi-net-card">
-          <div class="kpi-label">Net Balance (Income − Costs)</div>
+          <div class="kpi-label">Net Balance (Income − All Costs)</div>
           <div class="kpi-val" id="kpi-net">₹ 0</div>
-          <div class="kpi-sub" id="kpi-net-sub">Expenses + Withdrawals vs Income</div>
+          <div class="kpi-sub" id="kpi-net-sub">Company exp + liability + withdrawals vs income</div>
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="tab-nav">
         <button class="tab-btn active" onclick="switchTab('ledger',this)">Ledger</button>
+        <button class="tab-btn" onclick="switchTab('reimbursements',this)">Reimbursements</button>
         <button class="tab-btn" onclick="switchTab('cashflow',this)">Income & Cash Flow</button>
         <button class="tab-btn" onclick="switchTab('breakdown',this)">Category Breakdown</button>
         <button class="tab-btn" onclick="switchTab('monthly',this)">Monthly View</button>
@@ -738,6 +815,11 @@
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+          <select class="filter-select" id="filter-exptype" onchange="renderTable()">
+            <option value="">All Payers</option>
+            <option value="company">Company</option>
+            <option value="individual">Individual</option>
+          </select>
           <span class="filter-count" id="filter-count"></span>
         </div>
 
@@ -750,7 +832,8 @@
                 <th>Category</th>
                 <th>Paid By</th>
                 <th class="tr" style="width:130px">Amount</th>
-                <th class="tr" style="width:110px">Status</th>
+                <th class="tr" style="width:110px">Exp. Status</th>
+                <th class="tr" style="width:130px">Reimbursement</th>
                 <th class="tr" style="width:120px">Actions</th>
               </tr>
             </thead>
@@ -759,6 +842,70 @@
           <div class="empty-state" id="empty-state" style="display:none">
             <div class="empty-title">No expenses recorded</div>
             <div class="empty-sub">Add your first expense using the form on the left.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: REIMBURSEMENTS -->
+      <div class="tab-panel" id="tab-reimbursements">
+        <div class="section-header">
+          <span class="section-title">Individual Expenses & Reimbursements</span>
+          <div class="section-actions">
+            <div class="export-bar">
+              <button class="export-btn" onclick="approveAllReimb()">✓ Approve All Pending</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="reimb-summary">
+          <div class="reimb-sum-card">
+            <div class="reimb-sum-label">Total Individual Spend</div>
+            <div class="reimb-sum-val" id="rs-total">₹ 0</div>
+          </div>
+          <div class="reimb-sum-card" style="border-left:2px solid rgba(90,74,138,.2)">
+            <div class="reimb-sum-label">Pending Reimbursement</div>
+            <div class="reimb-sum-val" id="rs-pending" style="color:#5A4A8A">₹ 0</div>
+          </div>
+          <div class="reimb-sum-card" style="border-left:2px solid rgba(46,94,58,.2)">
+            <div class="reimb-sum-label">Reimbursed (Approved)</div>
+            <div class="reimb-sum-val" id="rs-approved" style="color:var(--success)">₹ 0</div>
+          </div>
+          <div class="reimb-sum-card" style="border-left:2px solid rgba(139,46,46,.2)">
+            <div class="reimb-sum-label">Rejected / Not Claimed</div>
+            <div class="reimb-sum-val" id="rs-rejected" style="color:var(--ink-muted)">₹ 0</div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input class="filter-input" type="text" placeholder="Search…" id="reimb-search" oninput="renderReimbTable()"/>
+          <select class="filter-select" id="reimb-filter-status" onchange="renderReimbTable()">
+            <option value="">All Reimbursement Statuses</option>
+            <option value="none">Not Requested</option>
+            <option value="pending">Pending Approval</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <span class="filter-count" id="reimb-filter-count"></span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:100px">Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Paid By</th>
+                <th class="tr" style="width:130px">Amount</th>
+                <th class="tr" style="width:140px">Reimbursement</th>
+                <th class="tr" style="width:140px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="reimb-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="reimb-empty" style="display:none">
+            <div class="empty-title">No individual expenses</div>
+            <div class="empty-sub">Expenses paid by individuals will appear here for reimbursement tracking.</div>
           </div>
         </div>
       </div>
@@ -897,14 +1044,16 @@ const SB_HEADERS = {
 // Map DB row → app object
 function rowToExp(r){
   return {
-    id:       r.id,
-    date:     r.date,
-    desc:     r.description,
-    notes:    r.notes || '',
-    cat:      r.category,
-    paidby:   r.paid_by,
-    amount:   parseFloat(r.amount),
-    status:   r.status,
+    id:          r.id,
+    date:        r.date,
+    desc:        r.description,
+    notes:       r.notes || '',
+    cat:         r.category,
+    paidby:      r.paid_by,
+    amount:      parseFloat(r.amount),
+    status:      r.status,
+    exptype:     r.expense_type || 'company',       // 'company' | 'individual'
+    reimbStatus: r.reimbursement_status || 'none',  // 'none' | 'pending' | 'approved' | 'rejected'
   };
 }
 
@@ -1013,13 +1162,15 @@ async function dbAdd(exp){
     method: 'POST',
     headers: SB_HEADERS,
     body: JSON.stringify({
-      date:        exp.date,
-      description: exp.desc,
-      notes:       exp.notes || null,
-      category:    exp.cat,
-      paid_by:     exp.paidby,
-      amount:      exp.amount,
-      status:      'pending'
+      date:                exp.date,
+      description:         exp.desc,
+      notes:               exp.notes || null,
+      category:            exp.cat,
+      paid_by:             exp.paidby,
+      amount:              exp.amount,
+      status:              'pending',
+      expense_type:        exp.exptype || 'company',
+      reimbursement_status: exp.reimbStatus || 'none'
     })
   });
   if(!res.ok) throw new Error(await res.text());
@@ -1032,13 +1183,15 @@ async function dbUpdate(exp){
     method: 'PATCH',
     headers: SB_HEADERS,
     body: JSON.stringify({
-      date:        exp.date,
-      description: exp.desc,
-      notes:       exp.notes || null,
-      category:    exp.cat,
-      paid_by:     exp.paidby,
-      amount:      exp.amount,
-      status:      exp.status
+      date:                exp.date,
+      description:         exp.desc,
+      notes:               exp.notes || null,
+      category:            exp.cat,
+      paid_by:             exp.paidby,
+      amount:              exp.amount,
+      status:              exp.status,
+      expense_type:        exp.exptype || 'company',
+      reimbursement_status: exp.reimbStatus || 'none'
     })
   });
   if(!res.ok) throw new Error(await res.text());
@@ -1059,6 +1212,17 @@ async function dbPatchStatus(id, status){
     method: 'PATCH',
     headers: SB_HEADERS,
     body: JSON.stringify({ status })
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
+
+async function dbPatchReimb(id, reimbStatus, exptype){
+  const body = { reimbursement_status: reimbStatus };
+  if(exptype) body.expense_type = exptype;
+  const res = await fetch(SB_URL+'/rest/v1/expenses?id=eq.'+id, {
+    method: 'PATCH',
+    headers: SB_HEADERS,
+    body: JSON.stringify(body)
   });
   if(!res.ok) throw new Error(await res.text());
 }
@@ -1111,6 +1275,7 @@ function render(){
   renderKPIs();
   renderSidebarKPIs();
   renderTable();
+  renderReimbTable();
   renderIncomeTable();
   renderBreakdown();
   renderMonthly();
@@ -1121,44 +1286,62 @@ function render(){
 // ══════════════════════════════════════════
 function renderKPIs(){
   const total = expenses.reduce((s,e)=>s+e.amount,0);
-  const approved = expenses.filter(e=>e.status==='approved').reduce((s,e)=>s+e.amount,0);
-  const pending  = expenses.filter(e=>e.status==='pending').reduce((s,e)=>s+e.amount,0);
 
-  const totalIncome = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
+  // Company expenses = direct company-paid + reimbursement-approved (now company's)
+  const companyExp = expenses.filter(e=>
+    e.exptype==='company' || (e.exptype==='individual' && e.reimbStatus==='approved')
+  ).reduce((s,e)=>s+e.amount,0);
+
+  // Liability = individual expenses with pending reimbursement (owed but not yet paid out)
+  const liability = expenses.filter(e=>
+    e.exptype==='individual' && e.reimbStatus==='pending'
+  ).reduce((s,e)=>s+e.amount,0);
+
+  const totalIncome   = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
   const totalWithdraw = incomes.filter(i=>i.type==='withdrawal').reduce((s,i)=>s+i.amount,0);
-  const netBalance = totalIncome - total - totalWithdraw;
+
+  // Net = Income − Company Confirmed Expenses − Outstanding Liability − Withdrawals
+  const netBalance = totalIncome - companyExp - liability - totalWithdraw;
 
   set('kpi-total', fmtINR(total));
   set('kpi-total-sub', expenses.length+' transactions recorded');
-  set('kpi-approved', fmtINR(approved));
-  set('kpi-approved-sub', expenses.filter(e=>e.status==='approved').length+' cleared');
-  set('kpi-pending', fmtINR(pending));
-  set('kpi-pending-sub', expenses.filter(e=>e.status==='pending').length+' awaiting review');
 
   set('kpi-income-total', fmtINR(totalIncome));
   set('kpi-income-sub', incomes.filter(i=>i.type==='income').length+' income entries');
   set('kpi-withdraw-total', fmtINR(totalWithdraw));
   set('kpi-withdraw-sub', incomes.filter(i=>i.type==='withdrawal').length+' withdrawals');
 
-  const netCard = document.getElementById('kpi-net-card');
-  const netEl = document.getElementById('kpi-net');
-  set('kpi-net', (netBalance>=0?'':'-')+fmtINR(Math.abs(netBalance)));
-  if(netCard){
-    netCard.classList.remove('net-pos','net-neg');
-    netCard.classList.add(netBalance>=0?'net-pos':'net-neg');
-  }
-  if(netEl) netEl.style.color = netBalance>=0?'var(--net-pos)':'var(--net-neg)';
-  set('kpi-net-sub', netBalance>=0?'Surplus — income exceeds outflows':'Deficit — outflows exceed income');
+  set('kpi-company-exp', fmtINR(companyExp));
+  const directCo = expenses.filter(e=>e.exptype==='company').length;
+  const reimbCo  = expenses.filter(e=>e.exptype==='individual'&&e.reimbStatus==='approved').length;
+  set('kpi-company-exp-sub', `${directCo} direct · ${reimbCo} reimbursed`);
 
-  // cashflow summary bar
+  set('kpi-liability', fmtINR(liability));
+  set('kpi-liability-sub', expenses.filter(e=>e.exptype==='individual'&&e.reimbStatus==='pending').length+' pending reimbursements');
+
+  const netCard = document.getElementById('kpi-net-card');
+  const netEl   = document.getElementById('kpi-net');
+  set('kpi-net', (netBalance>=0?'':'-')+fmtINR(Math.abs(netBalance)));
+  if(netCard){ netCard.classList.remove('net-pos','net-neg'); netCard.classList.add(netBalance>=0?'net-pos':'net-neg'); }
+  if(netEl)   netEl.style.color = netBalance>=0?'var(--net-pos)':'var(--net-neg)';
+  set('kpi-net-sub', netBalance>=0?'Surplus — income exceeds all outflows':'Deficit — outflows exceed income');
+
+  // cashflow tab summary
   set('cf-income-total', fmtINR(totalIncome));
   set('cf-withdraw-total', fmtINR(totalWithdraw));
   const retained = totalIncome - totalWithdraw;
   const retEl = document.getElementById('cf-net-retained');
   if(retEl){
-    retEl.textContent = (retained>=0?'':'-')+fmtINR(Math.abs(retained)).replace('₹','₹').trim();
+    retEl.textContent = (retained>=0?'':'-')+fmtINR(Math.abs(retained));
     retEl.style.color = retained>=0?'var(--success)':'var(--danger)';
   }
+
+  // reimbursements tab summary
+  const indivExp = expenses.filter(e=>e.exptype==='individual');
+  set('rs-total',    fmtINR(indivExp.reduce((s,e)=>s+e.amount,0)));
+  set('rs-pending',  fmtINR(indivExp.filter(e=>e.reimbStatus==='pending').reduce((s,e)=>s+e.amount,0)));
+  set('rs-approved', fmtINR(indivExp.filter(e=>e.reimbStatus==='approved').reduce((s,e)=>s+e.amount,0)));
+  set('rs-rejected', fmtINR(indivExp.filter(e=>e.reimbStatus==='rejected'||e.reimbStatus==='none').reduce((s,e)=>s+e.amount,0)));
 }
 
 function renderSidebarKPIs(){
@@ -1167,21 +1350,22 @@ function renderSidebarKPIs(){
     const d = new Date(e.date+'T00:00:00');
     return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
   });
-  const monthTotal = thisMonth.reduce((s,e)=>s+e.amount,0);
+  const monthTotal  = thisMonth.reduce((s,e)=>s+e.amount,0);
   const pendingList = expenses.filter(e=>e.status==='pending');
-  const pendingTotal = pendingList.reduce((s,e)=>s+e.amount,0);
+  const pendingTotal= pendingList.reduce((s,e)=>s+e.amount,0);
 
-  const totalIncome = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
-  const totalExpenses = expenses.reduce((s,e)=>s+e.amount,0);
+  const totalIncome   = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
   const totalWithdraw = incomes.filter(i=>i.type==='withdrawal').reduce((s,i)=>s+i.amount,0);
-  const net = totalIncome - totalExpenses - totalWithdraw;
+  const companyExp    = expenses.filter(e=>e.exptype==='company'||(e.exptype==='individual'&&e.reimbStatus==='approved')).reduce((s,e)=>s+e.amount,0);
+  const liability     = expenses.filter(e=>e.exptype==='individual'&&e.reimbStatus==='pending').reduce((s,e)=>s+e.amount,0);
+  const net = totalIncome - companyExp - liability - totalWithdraw;
 
   const netEl = document.getElementById('sb-net-balance');
   if(netEl){
     netEl.textContent = (net>=0?'':'-')+fmtINR(Math.abs(net));
     netEl.style.color = net>=0?'var(--success)':'var(--danger)';
   }
-  set('sb-net-sub', net>=0?'Surplus (income > outflows)':'Deficit (outflows > income)');
+  set('sb-net-sub', net>=0?'Surplus (income > all outflows)':'Deficit (outflows > income)');
   set('sb-month-total', fmtINR(monthTotal));
   set('sb-month-count', thisMonth.length+' transactions this month');
   set('sb-pending-total', fmtINR(pendingTotal));
@@ -1192,60 +1376,240 @@ function renderSidebarKPIs(){
 // TABLE
 // ══════════════════════════════════════════
 function renderTable(){
-  const search = document.getElementById('search-input').value.toLowerCase();
-  const catF   = document.getElementById('filter-cat').value;
-  const statF  = document.getElementById('filter-status').value;
+  const search  = document.getElementById('search-input').value.toLowerCase();
+  const catF    = document.getElementById('filter-cat').value;
+  const statF   = document.getElementById('filter-status').value;
+  const typeF   = document.getElementById('filter-exptype').value;
 
   let filtered = expenses.filter(e=>{
-    const matchSearch = e.desc.toLowerCase().includes(search) || (e.notes||'').toLowerCase().includes(search);
-    const matchCat = !catF || e.cat===catF;
-    const matchStat = !statF || e.status===statF;
-    return matchSearch && matchCat && matchStat;
+    const matchSearch = e.desc.toLowerCase().includes(search)||(e.notes||'').toLowerCase().includes(search);
+    const matchCat    = !catF  || e.cat===catF;
+    const matchStat   = !statF || e.status===statF;
+    const matchType   = !typeF || e.exptype===typeF;
+    return matchSearch && matchCat && matchStat && matchType;
   }).sort((a,b)=>b.date.localeCompare(a.date));
 
   const tbody = document.getElementById('expense-tbody');
   const empty = document.getElementById('empty-state');
 
   if(!filtered.length){
-    tbody.innerHTML='';
-    empty.style.display='block';
-    set('filter-count','');
-    return;
+    tbody.innerHTML=''; empty.style.display='block'; set('filter-count',''); return;
   }
   empty.style.display='none';
   set('filter-count', filtered.length+' of '+expenses.length+' entries');
 
+  // Group by payer type: company first, then individual
+  const companyRows = filtered.filter(e=>e.exptype==='company');
+  const indivRows   = filtered.filter(e=>e.exptype==='individual');
+
+  function makeRows(rows){
+    return rows.map(e=>{
+      const c = catObj(e.cat);
+      const pillClass = e.status==='approved'?'pill-approved':e.status==='rejected'?'pill-rejected':'pill-pending';
+      const reimbPill = reimbPillHtml(e);
+      const isIndiv   = e.exptype==='individual';
+      return `<tr style="${isIndiv?'background:rgba(90,74,138,.025)':''}">
+        <td class="td-date">${fmtDate(e.date)}</td>
+        <td>
+          <div style="margin-bottom:2px">
+            <span class="payer-badge ${isIndiv?'payer-individual':'payer-company'}">${isIndiv?'Individual':'Company'}</span>
+          </div>
+          <div class="td-desc">${esc(e.desc)}</div>
+          ${e.notes?`<div class="td-sub">${esc(e.notes)}</div>`:''}
+        </td>
+        <td><span class="td-cat"><span style="width:6px;height:6px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0"></span>${c.label}</span></td>
+        <td><span style="font-size:10.5px;color:var(--ink-soft)">${esc(e.paidby)}</span></td>
+        <td class="td-amt">${fmtINRFull(e.amount)}</td>
+        <td style="text-align:right">
+          <span class="pill ${pillClass}" onclick="toggleStatus(${e.id})" title="Click to cycle status">${e.status}</span>
+        </td>
+        <td style="text-align:right">${reimbPill}</td>
+        <td class="td-actions">
+          <button class="row-btn" onclick="openEdit(${e.id})">Edit</button>
+          <button class="row-btn del" onclick="deleteExpense(${e.id})">Del</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  let html = '';
+  if(companyRows.length){
+    const total = companyRows.reduce((s,e)=>s+e.amount,0);
+    html += `<tr class="payer-group-header" onclick="toggleGroup('grp-company')">
+      <td colspan="8">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="payer-group-title">
+            <span class="payer-badge payer-company">Company</span>
+            ${companyRows.length} expense${companyRows.length!==1?'s':''}
+          </div>
+          <div class="payer-group-meta">
+            <span>${fmtINRFull(total)}</span>
+            <span class="payer-group-chevron open" id="chev-grp-company">▾</span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+    html += `<tbody id="grp-company" class="payer-group-rows open">${makeRows(companyRows)}</tbody>`;
+  }
+  if(indivRows.length){
+    const total = indivRows.reduce((s,e)=>s+e.amount,0);
+    const pendAmt = indivRows.filter(e=>e.reimbStatus==='pending').reduce((s,e)=>s+e.amount,0);
+    html += `<tr class="payer-group-header" onclick="toggleGroup('grp-indiv')">
+      <td colspan="8">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="payer-group-title">
+            <span class="payer-badge payer-individual">Individual</span>
+            ${indivRows.length} expense${indivRows.length!==1?'s':''}
+            ${pendAmt>0?`<span style="font-size:8px;color:#5A4A8A;font-weight:400">${fmtINR(pendAmt)} pending reimbursement</span>`:''}
+          </div>
+          <div class="payer-group-meta">
+            <span>${fmtINRFull(total)}</span>
+            <span class="payer-group-chevron open" id="chev-grp-indiv">▾</span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+    html += `<tbody id="grp-indiv" class="payer-group-rows open">${makeRows(indivRows)}</tbody>`;
+  }
+
+  tbody.innerHTML = html;
+}
+
+function toggleGroup(id){
+  const el   = document.getElementById(id);
+  const chev = document.getElementById('chev-'+id);
+  if(!el) return;
+  el.classList.toggle('open');
+  if(chev) chev.classList.toggle('open');
+}
+
+function reimbPillHtml(e){
+  if(e.exptype!=='individual') return '<span style="font-size:9px;color:var(--ink-muted)">—</span>';
+  const map = {
+    none:     ['pill-reimb-pending','Not Claimed'],
+    pending:  ['pill-reimb-pending','Reimb. Pending'],
+    approved: ['pill-reimb-approved','Reimbursed ✓'],
+    rejected: ['pill-reimb-rejected','Reimb. Rejected'],
+  };
+  const [cls, label] = map[e.reimbStatus]||map.none;
+  const next = {none:'pending', pending:'approved', approved:'rejected', rejected:'none'};
+  return `<span class="pill ${cls}" onclick="cycleReimb(${e.id})" title="Click to cycle reimbursement status">${label}</span>`;
+}
+
+// ══════════════════════════════════════════
+// REIMBURSEMENTS TABLE
+// ══════════════════════════════════════════
+function renderReimbTable(){
+  const search = (document.getElementById('reimb-search')||{}).value?.toLowerCase()||'';
+  const statF  = (document.getElementById('reimb-filter-status')||{}).value||'';
+
+  const indivAll = expenses.filter(e=>e.exptype==='individual');
+  let filtered = indivAll.filter(e=>{
+    const matchSearch = e.desc.toLowerCase().includes(search)||(e.notes||'').toLowerCase().includes(search);
+    const matchStat = !statF || e.reimbStatus===statF;
+    return matchSearch && matchStat;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('reimb-tbody');
+  const empty = document.getElementById('reimb-empty');
+  if(!tbody) return;
+
+  if(!filtered.length){
+    tbody.innerHTML=''; empty.style.display='block'; set('reimb-filter-count',''); return;
+  }
+  empty.style.display='none';
+  set('reimb-filter-count', filtered.length+' of '+indivAll.length+' entries');
+
   tbody.innerHTML = filtered.map(e=>{
     const c = catObj(e.cat);
-    const pillClass = e.status==='approved'?'pill-approved':e.status==='rejected'?'pill-rejected':'pill-pending';
+    const map = {
+      none:     ['pill-reimb-pending','Not Claimed'],
+      pending:  ['pill-reimb-pending','Pending Approval'],
+      approved: ['pill-reimb-approved','Approved ✓'],
+      rejected: ['pill-reimb-rejected','Rejected'],
+    };
+    const [cls, label] = map[e.reimbStatus]||map.none;
     return `<tr>
       <td class="td-date">${fmtDate(e.date)}</td>
       <td>
         <div class="td-desc">${esc(e.desc)}</div>
         ${e.notes?`<div class="td-sub">${esc(e.notes)}</div>`:''}
       </td>
-      <td>
-        <span class="td-cat">
-          <span style="width:6px;height:6px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0"></span>
-          ${c.label}
-        </span>
-      </td>
+      <td><span class="td-cat"><span style="width:6px;height:6px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0"></span>${c.label}</span></td>
       <td><span style="font-size:10.5px;color:var(--ink-soft)">${esc(e.paidby)}</span></td>
-      <td class="td-amt">${fmtINRFull(e.amount)}</td>
+      <td class="td-amt" style="color:var(--warn)">${fmtINRFull(e.amount)}</td>
       <td style="text-align:right">
-        <span class="pill ${pillClass}" onclick="toggleStatus(${e.id})" title="Click to cycle status">${e.status}</span>
+        <span class="pill ${cls}" onclick="cycleReimb(${e.id})" title="Click to cycle reimbursement status">${label}</span>
       </td>
       <td class="td-actions">
+        ${e.reimbStatus==='none'?`<button class="row-btn" onclick="requestReimb(${e.id})" style="color:#5A4A8A;border-color:rgba(90,74,138,.3)">Request</button>`:''}
+        ${e.reimbStatus==='pending'?`<button class="row-btn" onclick="approveReimb(${e.id})" style="color:var(--success)">Approve</button><button class="row-btn del" onclick="rejectReimb(${e.id})">Reject</button>`:''}
         <button class="row-btn" onclick="openEdit(${e.id})">Edit</button>
-        <button class="row-btn del" onclick="deleteExpense(${e.id})">Del</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-// ══════════════════════════════════════════
-// BREAKDOWN
-// ══════════════════════════════════════════
+async function cycleReimb(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e||e.exptype!=='individual') return;
+  const cycle = {none:'pending', pending:'approved', approved:'rejected', rejected:'none'};
+  const newReimb = cycle[e.reimbStatus]||'none';
+  // if approved → move to company expense type
+  const newExptype = newReimb==='approved'?'company':e.exptype;
+  try {
+    await dbPatchReimb(id, newReimb, newExptype);
+    e.reimbStatus = newReimb;
+    e.exptype = newExptype;
+    render();
+    toast('Reimbursement → '+newReimb+(newReimb==='approved'?' · Moved to Company':' '));
+  } catch(err){ toast('Update failed — '+err.message); }
+}
+
+async function requestReimb(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e) return;
+  try {
+    await dbPatchReimb(id,'pending',null);
+    e.reimbStatus='pending';
+    render();
+    toast('Reimbursement requested');
+  } catch(err){ toast('Failed — '+err.message); }
+}
+
+async function approveReimb(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e) return;
+  try {
+    await dbPatchReimb(id,'approved','company');
+    e.reimbStatus='approved';
+    e.exptype='company';
+    render();
+    toast('Reimbursement approved — moved to Company expenses');
+  } catch(err){ toast('Failed — '+err.message); }
+}
+
+async function rejectReimb(id){
+  const e = expenses.find(x=>x.id===id);
+  if(!e) return;
+  try {
+    await dbPatchReimb(id,'rejected',null);
+    e.reimbStatus='rejected';
+    render();
+    toast('Reimbursement rejected');
+  } catch(err){ toast('Failed — '+err.message); }
+}
+
+async function approveAllReimb(){
+  const pending = expenses.filter(e=>e.exptype==='individual'&&e.reimbStatus==='pending');
+  if(!pending.length){ toast('No pending reimbursements'); return; }
+  try {
+    await Promise.all(pending.map(e=>dbPatchReimb(e.id,'approved','company')));
+    pending.forEach(e=>{ e.reimbStatus='approved'; e.exptype='company'; });
+    render();
+    toast(pending.length+' reimbursement'+(pending.length>1?'s':'')+' approved');
+  } catch(err){ toast('Failed — '+err.message); }
+}
 function renderBreakdown(){
   const total = expenses.reduce((s,e)=>s+e.amount,0);
   const bycat = {};
@@ -1347,33 +1711,42 @@ function renderMonthly(){
 // ACTIONS
 // ══════════════════════════════════════════
 async function addExpense(){
-  const date   = document.getElementById('f-date').value;
-  const desc   = document.getElementById('f-desc').value.trim();
-  const notes  = document.getElementById('f-notes').value.trim();
-  const cat    = document.getElementById('f-cat').value;
-  const amount = parseFloat(document.getElementById('f-amount').value);
-  const paidby = document.getElementById('f-paidby').value;
+  const date      = document.getElementById('f-date').value;
+  const desc      = document.getElementById('f-desc').value.trim();
+  const notes     = document.getElementById('f-notes').value.trim();
+  const cat       = document.getElementById('f-cat').value;
+  const amount    = parseFloat(document.getElementById('f-amount').value);
+  const paidby    = document.getElementById('f-paidby').value;
+  const exptype   = document.getElementById('f-exptype').value;
+  const reimbStatus = exptype==='individual' ? document.getElementById('f-reimb').value : 'none';
 
   if(!date || !desc || !amount || amount<=0){
     toast('Fill in Date, Description and Amount');
     return;
   }
 
-  const btn = document.querySelector('.btn-primary');
+  const btn = document.querySelector('#form-expense .btn-primary');
   btn.textContent = 'Saving…'; btn.disabled = true;
 
   try {
-    const saved = await dbAdd({ date, desc, notes, cat, paidby, amount });
+    const saved = await dbAdd({ date, desc, notes, cat, paidby, amount, exptype, reimbStatus });
     expenses.unshift(saved);
     clearForm();
     render();
-    toast('Expense saved to database');
+    toast('Expense saved');
   } catch(err){
     toast('Save failed — '+err.message);
     console.error(err);
   }
 
   btn.textContent = '+ Add Expense'; btn.disabled = false;
+}
+
+function updateExpenseType(){
+  const paidby = document.getElementById('f-paidby').value;
+  const isIndiv = paidby!=='Company Account';
+  document.getElementById('f-exptype').value = isIndiv?'individual':'company';
+  document.getElementById('f-reimb-wrap').style.display = isIndiv?'block':'none';
 }
 
 function clearForm(){
@@ -1383,6 +1756,9 @@ function clearForm(){
   document.getElementById('f-amount').value = '';
   document.getElementById('f-cat').selectedIndex = 0;
   document.getElementById('f-paidby').selectedIndex = 0;
+  document.getElementById('f-exptype').value = 'company';
+  document.getElementById('f-reimb-wrap').style.display = 'none';
+  document.getElementById('f-reimb').value = 'none';
 }
 
 // ══════════════════════════════════════════
@@ -1624,29 +2000,39 @@ function openEdit(id){
   const e = expenses.find(x=>x.id===id);
   if(!e) return;
   editingId = id;
-  document.getElementById('edit-date').value   = e.date;
-  document.getElementById('edit-desc').value   = e.desc;
-  document.getElementById('edit-notes').value  = e.notes||'';
-  document.getElementById('edit-cat').value    = e.cat;
-  document.getElementById('edit-amount').value = e.amount;
-  document.getElementById('edit-paidby').value = e.paidby;
-  document.getElementById('edit-status').value = e.status;
+  document.getElementById('edit-date').value        = e.date;
+  document.getElementById('edit-desc').value        = e.desc;
+  document.getElementById('edit-notes').value       = e.notes||'';
+  document.getElementById('edit-cat').value         = e.cat;
+  document.getElementById('edit-amount').value      = e.amount;
+  document.getElementById('edit-paidby').value      = e.paidby;
+  document.getElementById('edit-status').value      = e.status;
+  document.getElementById('edit-exptype').value     = e.exptype||'company';
+  document.getElementById('edit-reimb-status').value = e.reimbStatus||'none';
+  toggleEditReimb();
   document.getElementById('edit-modal').classList.add('open');
+}
+
+function toggleEditReimb(){
+  const t = document.getElementById('edit-exptype').value;
+  document.getElementById('edit-reimb-wrap').style.display = t==='individual'?'block':'none';
 }
 
 async function saveEdit(){
   const e = expenses.find(x=>x.id===editingId);
   if(!e) return;
-
+  const newExptype = document.getElementById('edit-exptype').value;
   const updated = {
     ...e,
-    date:   document.getElementById('edit-date').value,
-    desc:   document.getElementById('edit-desc').value.trim(),
-    notes:  document.getElementById('edit-notes').value.trim(),
-    cat:    document.getElementById('edit-cat').value,
-    amount: parseFloat(document.getElementById('edit-amount').value)||0,
-    paidby: document.getElementById('edit-paidby').value,
-    status: document.getElementById('edit-status').value,
+    date:        document.getElementById('edit-date').value,
+    desc:        document.getElementById('edit-desc').value.trim(),
+    notes:       document.getElementById('edit-notes').value.trim(),
+    cat:         document.getElementById('edit-cat').value,
+    amount:      parseFloat(document.getElementById('edit-amount').value)||0,
+    paidby:      document.getElementById('edit-paidby').value,
+    status:      document.getElementById('edit-status').value,
+    exptype:     newExptype,
+    reimbStatus: newExptype==='individual' ? document.getElementById('edit-reimb-status').value : 'none',
   };
 
   const saveBtn = document.querySelector('#edit-modal .btn-primary');
