@@ -23,6 +23,10 @@
       --danger:      #8B2E2E;
       --success:     #2E5E3A;
       --warn:        #7A5A1E;
+      --income:      #2E5E3A;
+      --withdraw:    #7A5A1E;
+      --net-pos:     #2E5E3A;
+      --net-neg:     #8B2E2E;
     }
     html,body{height:100%;background:var(--bg);font-family:"DM Sans",sans-serif;color:var(--ink)}
 
@@ -346,16 +350,51 @@
     }
     .toast.show{opacity:1;transform:translateY(0)}
 
+    /* ── ENTRY TYPE TOGGLE ── */
+    .entry-toggle{display:flex;gap:1px;margin-bottom:16px;background:var(--rule);}
+    .entry-toggle-btn{
+      flex:1;padding:8px 6px;border:none;
+      font-family:"DM Sans",sans-serif;font-size:8px;
+      letter-spacing:1.5px;text-transform:uppercase;font-weight:500;
+      cursor:pointer;transition:all 0.2s;color:var(--ink-muted);
+      background:var(--bg-warm);
+    }
+    .entry-toggle-btn.active{background:var(--ink);color:var(--bg)}
+    .entry-toggle-btn.income-active{background:var(--success);color:#fff}
+    .entry-toggle-btn.withdraw-active{background:var(--warn);color:#fff}
+
+    /* ── NET BALANCE KPI ── */
+    .kpi-card.net-pos .kpi-val{color:var(--net-pos)}
+    .kpi-card.net-neg .kpi-val{color:var(--net-neg)}
+    .kpi-card.income-card .kpi-val{color:var(--income)}
+    .kpi-card.withdraw-card .kpi-val{color:var(--withdraw)}
+
+    /* ── INCOME TABLE ── */
+    .income-type-badge{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:2px 7px;font-size:8px;letter-spacing:1px;
+      text-transform:uppercase;font-weight:500;border:1px solid;
+    }
+    .type-income{color:var(--success);border-color:rgba(46,94,58,.3);background:rgba(46,94,58,.07)}
+    .type-withdraw{color:var(--warn);border-color:rgba(122,90,30,.3);background:rgba(122,90,30,.07)}
+
+    /* ── CASHFLOW BAR CHART ── */
+    .cf-bar-wrap{display:flex;align-items:flex-end;gap:4px;height:100%}
+    .cf-bar-income{background:rgba(46,94,58,.5);transition:height 0.5s ease;min-height:2px;flex:1}
+    .cf-bar-expense{background:rgba(139,46,46,.35);transition:height 0.5s ease;min-height:2px;flex:1}
+    .cf-bar-withdraw{background:rgba(122,90,30,.4);transition:height 0.5s ease;min-height:2px;flex:1}
+
     @keyframes loadpulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}
 
     @media(max-width:1100px){
-      .kpi-grid{grid-template-columns:repeat(2,1fr)}
+      .kpi-grid{grid-template-columns:repeat(2,1fr) !important}
       .breakdown-grid{grid-template-columns:1fr}
     }
     @media(max-width:800px){
       .app{flex-direction:column}
       .sidebar{width:100%;min-height:auto;height:auto;position:static}
       .main-inner{padding:24px 20px}
+      .kpi-grid{grid-template-columns:1fr !important}
     }
   </style>
 </head>
@@ -363,6 +402,52 @@
 
 <div class="watermark" aria-hidden="true">
   <img src="https://pdbhvohvjboopbgwbkqu.supabase.co/storage/v1/object/public/Sakhii%20IVF/HOC%20transparent.png" alt="" draggable="false"/>
+</div>
+
+<!-- ══ INCOME / WITHDRAWAL MODAL ══ -->
+<div class="modal-overlay" id="income-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeIncomeModal()">✕</button>
+    <div class="modal-title" id="income-modal-title">Edit Entry</div>
+    <div class="fg">
+      <label class="fl">Date</label>
+      <input class="fi" type="date" id="einc-date"/>
+    </div>
+    <div class="fg">
+      <label class="fl">Description</label>
+      <input class="fi" type="text" id="einc-desc" placeholder="e.g. Client Invoice #12"/>
+    </div>
+    <div class="fg">
+      <label class="fl">Notes <span style="font-size:8px;color:var(--ink-muted)">(optional)</span></label>
+      <input class="fi" type="text" id="einc-notes" placeholder="e.g. Q1 retainer payment received"/>
+    </div>
+    <div class="row-2">
+      <div class="fg">
+        <label class="fl">Source / Account</label>
+        <select class="fs" id="einc-source">
+          <option>Client Payment</option>
+          <option>Product Revenue</option>
+          <option>Investment</option>
+          <option>Loan</option>
+          <option>Personal Contribution</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Amount (₹)</label>
+        <input class="fi" type="number" id="einc-amount" placeholder="0"/>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">Type</label>
+      <select class="fs" id="einc-type">
+        <option value="income">Income Received</option>
+        <option value="withdrawal">Withdrawal</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="saveIncomeEdit()">Save Changes</button>
+    <button class="btn-secondary" onclick="closeIncomeModal()">Cancel</button>
+  </div>
 </div>
 
 <!-- ══ EDIT MODAL ══ -->
@@ -443,6 +528,11 @@
     <!-- Live KPIs -->
     <div class="sb-kpis">
       <div class="sb-kpi">
+        <div class="sb-kpi-label">Net Balance — All Time</div>
+        <div class="sb-kpi-val" id="sb-net-balance">₹ 0</div>
+        <div class="sb-kpi-sub" id="sb-net-sub">Income − Expenses − Withdrawals</div>
+      </div>
+      <div class="sb-kpi">
         <div class="sb-kpi-label">Total This Month</div>
         <div class="sb-kpi-val" id="sb-month-total">₹ 0</div>
         <div class="sb-kpi-sub" id="sb-month-count">0 transactions</div>
@@ -454,8 +544,16 @@
       </div>
     </div>
 
+    <!-- Entry Type Toggle -->
+    <div class="sb-sec">New Entry</div>
+    <div class="entry-toggle">
+      <button class="entry-toggle-btn active" id="toggle-expense" onclick="switchEntryType('expense')">Expense</button>
+      <button class="entry-toggle-btn" id="toggle-income" onclick="switchEntryType('income')">Income</button>
+      <button class="entry-toggle-btn" id="toggle-withdraw" onclick="switchEntryType('withdrawal')">Withdraw</button>
+    </div>
+
     <!-- Add Expense Form -->
-    <div class="sb-sec">New Expense</div>
+    <div id="form-expense">
     <div class="fg">
       <label class="fl" for="f-date">Date</label>
       <input class="fi" type="date" id="f-date"/>
@@ -488,9 +586,78 @@
         <option>Credit Card</option>
       </select>
     </div>
-
     <button class="btn-primary" onclick="addExpense()">+ Add Expense</button>
     <button class="btn-secondary" onclick="clearForm()">↺ Clear Form</button>
+    </div>
+
+    <!-- Add Income Form -->
+    <div id="form-income" style="display:none">
+    <div class="fg">
+      <label class="fl" for="fi-date">Date</label>
+      <input class="fi" type="date" id="fi-date"/>
+    </div>
+    <div class="fg">
+      <label class="fl" for="fi-desc">Description</label>
+      <input class="fi" type="text" id="fi-desc" placeholder="e.g. Client Invoice #12"/>
+    </div>
+    <div class="fg">
+      <label class="fl" for="fi-notes">Notes <span style="font-size:8px;color:var(--ink-muted)">(optional)</span></label>
+      <input class="fi" type="text" id="fi-notes" placeholder="e.g. Q1 retainer received"/>
+    </div>
+    <div class="row-2">
+      <div class="fg">
+        <label class="fl" for="fi-source">Source</label>
+        <select class="fs" id="fi-source">
+          <option>Client Payment</option>
+          <option>Product Revenue</option>
+          <option>Investment</option>
+          <option>Loan</option>
+          <option>Personal Contribution</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl" for="fi-amount">Amount (₹)</label>
+        <input class="fi" type="number" id="fi-amount" placeholder="0" min="0"/>
+      </div>
+    </div>
+    <button class="btn-primary" style="background:var(--success)" onclick="addIncome('income')">+ Add Income</button>
+    <button class="btn-secondary" onclick="clearIncomeForm()">↺ Clear</button>
+    </div>
+
+    <!-- Add Withdrawal Form -->
+    <div id="form-withdrawal" style="display:none">
+    <div class="fg">
+      <label class="fl" for="fw-date">Date</label>
+      <input class="fi" type="date" id="fw-date"/>
+    </div>
+    <div class="fg">
+      <label class="fl" for="fw-desc">Description</label>
+      <input class="fi" type="text" id="fw-desc" placeholder="e.g. Founder Salary Draw"/>
+    </div>
+    <div class="fg">
+      <label class="fl" for="fw-notes">Notes <span style="font-size:8px;color:var(--ink-muted)">(optional)</span></label>
+      <input class="fi" type="text" id="fw-notes" placeholder="e.g. Monthly director draw"/>
+    </div>
+    <div class="row-2">
+      <div class="fg">
+        <label class="fl" for="fw-source">Account</label>
+        <select class="fs" id="fw-source">
+          <option>Company Account</option>
+          <option>Chirag — Personal</option>
+          <option>Dhanush — Personal</option>
+          <option>Cash</option>
+          <option>Investment Account</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl" for="fw-amount">Amount (₹)</label>
+        <input class="fi" type="number" id="fw-amount" placeholder="0" min="0"/>
+      </div>
+    </div>
+    <button class="btn-primary" style="background:var(--warn)" onclick="addIncome('withdrawal')">− Record Withdrawal</button>
+    <button class="btn-secondary" onclick="clearWithdrawForm()">↺ Clear</button>
+    </div>
 
     <div class="sb-footer">Internal use only — The House of Chirag.<br/>Build Revenue. Build Control. Build Assets.</div>
   </div>
@@ -507,14 +674,24 @@
       </div>
 
       <!-- KPI Grid -->
-      <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-grid" id="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="kpi-card">
           <div class="kpi-label">Total Spend — All Time</div>
           <div class="kpi-val" id="kpi-total">₹ 0</div>
           <div class="kpi-sub" id="kpi-total-sub">0 transactions</div>
         </div>
+        <div class="kpi-card income-card">
+          <div class="kpi-label">Total Income — All Time</div>
+          <div class="kpi-val" id="kpi-income-total">₹ 0</div>
+          <div class="kpi-sub" id="kpi-income-sub">0 entries</div>
+        </div>
+        <div class="kpi-card withdraw-card">
+          <div class="kpi-label">Total Withdrawn — All Time</div>
+          <div class="kpi-val" id="kpi-withdraw-total">₹ 0</div>
+          <div class="kpi-sub" id="kpi-withdraw-sub">0 withdrawals</div>
+        </div>
         <div class="kpi-card">
-          <div class="kpi-label">Approved</div>
+          <div class="kpi-label">Approved Expenses</div>
           <div class="kpi-val" id="kpi-approved">₹ 0</div>
           <div class="kpi-sub" id="kpi-approved-sub">0 cleared</div>
         </div>
@@ -523,16 +700,17 @@
           <div class="kpi-val" id="kpi-pending">₹ 0</div>
           <div class="kpi-sub" id="kpi-pending-sub">0 awaiting</div>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Largest Single Expense</div>
-          <div class="kpi-val" id="kpi-largest">₹ 0</div>
-          <div class="kpi-sub" id="kpi-largest-sub">—</div>
+        <div class="kpi-card" id="kpi-net-card">
+          <div class="kpi-label">Net Balance (Income − Costs)</div>
+          <div class="kpi-val" id="kpi-net">₹ 0</div>
+          <div class="kpi-sub" id="kpi-net-sub">Expenses + Withdrawals vs Income</div>
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="tab-nav">
         <button class="tab-btn active" onclick="switchTab('ledger',this)">Ledger</button>
+        <button class="tab-btn" onclick="switchTab('cashflow',this)">Income & Cash Flow</button>
         <button class="tab-btn" onclick="switchTab('breakdown',this)">Category Breakdown</button>
         <button class="tab-btn" onclick="switchTab('monthly',this)">Monthly View</button>
       </div>
@@ -581,6 +759,64 @@
           <div class="empty-state" id="empty-state" style="display:none">
             <div class="empty-title">No expenses recorded</div>
             <div class="empty-sub">Add your first expense using the form on the left.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: CASH FLOW -->
+      <div class="tab-panel" id="tab-cashflow">
+        <div class="section-header">
+          <span class="section-title">Income & Withdrawals</span>
+          <div class="section-actions">
+            <div class="export-bar">
+              <button class="export-btn" onclick="exportIncomeCSV()">↓ Export CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input class="filter-input" type="text" placeholder="Search entries…" id="inc-search" oninput="renderIncomeTable()"/>
+          <select class="filter-select" id="inc-filter-type" onchange="renderIncomeTable()">
+            <option value="">All Types</option>
+            <option value="income">Income</option>
+            <option value="withdrawal">Withdrawal</option>
+          </select>
+          <span class="filter-count" id="inc-filter-count"></span>
+        </div>
+
+        <!-- Summary bar -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:20px">
+          <div style="background:rgba(46,94,58,.06);padding:16px 20px;border-right:1px solid var(--rule)">
+            <div style="font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px">Total Income</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--success)" id="cf-income-total">₹ 0</div>
+          </div>
+          <div style="background:rgba(122,90,30,.06);padding:16px 20px;border-right:1px solid var(--rule)">
+            <div style="font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px">Total Withdrawn</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--warn)" id="cf-withdraw-total">₹ 0</div>
+          </div>
+          <div style="background:var(--bg-warm);padding:16px 20px">
+            <div style="font-size:7.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px">Net Retained</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;" id="cf-net-retained">₹ 0</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:100px">Date</th>
+                <th>Description</th>
+                <th>Source / Account</th>
+                <th>Type</th>
+                <th class="tr" style="width:150px">Amount</th>
+                <th class="tr" style="width:120px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="income-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="income-empty" style="display:none">
+            <div class="empty-title">No income entries yet</div>
+            <div class="empty-sub">Switch to Income or Withdrawal in the sidebar to add entries.</div>
           </div>
         </div>
       </div>
@@ -673,7 +909,83 @@ function rowToExp(r){
 }
 
 let expenses  = [];
+let incomes   = [];   // income + withdrawal entries
 let editingId = null;
+let editingIncomeId = null;
+
+// ══════════════════════════════════════════
+// SUPABASE API — INCOME
+// ══════════════════════════════════════════
+function rowToInc(r){
+  return {
+    id:     r.id,
+    date:   r.date,
+    desc:   r.description,
+    notes:  r.notes || '',
+    source: r.source || '',
+    amount: parseFloat(r.amount),
+    type:   r.type,   // 'income' | 'withdrawal'
+  };
+}
+
+async function dbLoadIncome(){
+  try {
+    const res = await fetch(SB_URL+'/rest/v1/income_entries?select=*&order=date.desc,created_at.desc', {
+      headers: SB_HEADERS
+    });
+    if(!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    incomes = rows.map(rowToInc);
+  } catch(err){
+    // Table may not exist yet — start with empty, show info
+    incomes = [];
+    console.warn('income_entries table not found or error:', err.message);
+  }
+}
+
+async function dbAddIncome(entry){
+  const res = await fetch(SB_URL+'/rest/v1/income_entries', {
+    method: 'POST',
+    headers: SB_HEADERS,
+    body: JSON.stringify({
+      date:        entry.date,
+      description: entry.desc,
+      notes:       entry.notes || null,
+      source:      entry.source,
+      amount:      entry.amount,
+      type:        entry.type
+    })
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const rows = await res.json();
+  return rowToInc(rows[0]);
+}
+
+async function dbUpdateIncome(entry){
+  const res = await fetch(SB_URL+'/rest/v1/income_entries?id=eq.'+entry.id, {
+    method: 'PATCH',
+    headers: SB_HEADERS,
+    body: JSON.stringify({
+      date:        entry.date,
+      description: entry.desc,
+      notes:       entry.notes || null,
+      source:      entry.source,
+      amount:      entry.amount,
+      type:        entry.type
+    })
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const rows = await res.json();
+  return rowToInc(rows[0]);
+}
+
+async function dbDeleteIncome(id){
+  const res = await fetch(SB_URL+'/rest/v1/income_entries?id=eq.'+id, {
+    method: 'DELETE',
+    headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
 
 // ══════════════════════════════════════════
 // SUPABASE API
@@ -687,6 +999,7 @@ async function dbLoad(){
     if(!res.ok) throw new Error(await res.text());
     const rows = await res.json();
     expenses = rows.map(rowToExp);
+    await dbLoadIncome();
     render();
   } catch(err){
     toast('Failed to load — '+err.message);
@@ -766,7 +1079,10 @@ function init(){
   document.getElementById('f-cat').innerHTML = opts;
   document.getElementById('edit-cat').innerHTML = opts;
   document.getElementById('filter-cat').innerHTML = '<option value="">All Categories</option>' + opts;
-  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+  document.getElementById('fi-date').value = today;
+  document.getElementById('fw-date').value = today;
   dbLoad();
 }
 
@@ -795,6 +1111,7 @@ function render(){
   renderKPIs();
   renderSidebarKPIs();
   renderTable();
+  renderIncomeTable();
   renderBreakdown();
   renderMonthly();
 }
@@ -806,7 +1123,10 @@ function renderKPIs(){
   const total = expenses.reduce((s,e)=>s+e.amount,0);
   const approved = expenses.filter(e=>e.status==='approved').reduce((s,e)=>s+e.amount,0);
   const pending  = expenses.filter(e=>e.status==='pending').reduce((s,e)=>s+e.amount,0);
-  const largest  = expenses.length ? expenses.reduce((a,b)=>b.amount>a.amount?b:a) : null;
+
+  const totalIncome = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
+  const totalWithdraw = incomes.filter(i=>i.type==='withdrawal').reduce((s,i)=>s+i.amount,0);
+  const netBalance = totalIncome - total - totalWithdraw;
 
   set('kpi-total', fmtINR(total));
   set('kpi-total-sub', expenses.length+' transactions recorded');
@@ -814,9 +1134,30 @@ function renderKPIs(){
   set('kpi-approved-sub', expenses.filter(e=>e.status==='approved').length+' cleared');
   set('kpi-pending', fmtINR(pending));
   set('kpi-pending-sub', expenses.filter(e=>e.status==='pending').length+' awaiting review');
-  if(largest){
-    set('kpi-largest', fmtINR(largest.amount));
-    set('kpi-largest-sub', largest.desc);
+
+  set('kpi-income-total', fmtINR(totalIncome));
+  set('kpi-income-sub', incomes.filter(i=>i.type==='income').length+' income entries');
+  set('kpi-withdraw-total', fmtINR(totalWithdraw));
+  set('kpi-withdraw-sub', incomes.filter(i=>i.type==='withdrawal').length+' withdrawals');
+
+  const netCard = document.getElementById('kpi-net-card');
+  const netEl = document.getElementById('kpi-net');
+  set('kpi-net', (netBalance>=0?'':'-')+fmtINR(Math.abs(netBalance)));
+  if(netCard){
+    netCard.classList.remove('net-pos','net-neg');
+    netCard.classList.add(netBalance>=0?'net-pos':'net-neg');
+  }
+  if(netEl) netEl.style.color = netBalance>=0?'var(--net-pos)':'var(--net-neg)';
+  set('kpi-net-sub', netBalance>=0?'Surplus — income exceeds outflows':'Deficit — outflows exceed income');
+
+  // cashflow summary bar
+  set('cf-income-total', fmtINR(totalIncome));
+  set('cf-withdraw-total', fmtINR(totalWithdraw));
+  const retained = totalIncome - totalWithdraw;
+  const retEl = document.getElementById('cf-net-retained');
+  if(retEl){
+    retEl.textContent = (retained>=0?'':'-')+fmtINR(Math.abs(retained)).replace('₹','₹').trim();
+    retEl.style.color = retained>=0?'var(--success)':'var(--danger)';
   }
 }
 
@@ -830,6 +1171,17 @@ function renderSidebarKPIs(){
   const pendingList = expenses.filter(e=>e.status==='pending');
   const pendingTotal = pendingList.reduce((s,e)=>s+e.amount,0);
 
+  const totalIncome = incomes.filter(i=>i.type==='income').reduce((s,i)=>s+i.amount,0);
+  const totalExpenses = expenses.reduce((s,e)=>s+e.amount,0);
+  const totalWithdraw = incomes.filter(i=>i.type==='withdrawal').reduce((s,i)=>s+i.amount,0);
+  const net = totalIncome - totalExpenses - totalWithdraw;
+
+  const netEl = document.getElementById('sb-net-balance');
+  if(netEl){
+    netEl.textContent = (net>=0?'':'-')+fmtINR(Math.abs(net));
+    netEl.style.color = net>=0?'var(--success)':'var(--danger)';
+  }
+  set('sb-net-sub', net>=0?'Surplus (income > outflows)':'Deficit (outflows > income)');
   set('sb-month-total', fmtINR(monthTotal));
   set('sb-month-count', thisMonth.length+' transactions this month');
   set('sb-pending-total', fmtINR(pendingTotal));
@@ -1033,6 +1385,201 @@ function clearForm(){
   document.getElementById('f-paidby').selectedIndex = 0;
 }
 
+// ══════════════════════════════════════════
+// ENTRY TYPE TOGGLE
+// ══════════════════════════════════════════
+function switchEntryType(type){
+  ['expense','income','withdrawal'].forEach(t=>{
+    document.getElementById('form-'+t).style.display = t===type?'block':'none';
+    const btn = document.getElementById('toggle-'+t);
+    btn.classList.remove('active','income-active','withdraw-active');
+  });
+  const btn = document.getElementById('toggle-'+type);
+  if(type==='income') btn.classList.add('income-active');
+  else if(type==='withdrawal') btn.classList.add('withdraw-active');
+  else btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// INCOME / WITHDRAWAL ACTIONS
+// ══════════════════════════════════════════
+async function addIncome(type){
+  const prefix = type==='income'?'fi':'fw';
+  const date   = document.getElementById(prefix+'-date').value;
+  const desc   = document.getElementById(prefix+'-desc').value.trim();
+  const notes  = document.getElementById(prefix+'-notes').value.trim();
+  const source = document.getElementById(prefix+'-source').value;
+  const amount = parseFloat(document.getElementById(prefix+'-amount').value);
+
+  if(!date || !desc || !amount || amount<=0){
+    toast('Fill in Date, Description and Amount');
+    return;
+  }
+
+  const btn = type==='income'
+    ? document.querySelector('#form-income .btn-primary')
+    : document.querySelector('#form-withdrawal .btn-primary');
+  const origText = btn.textContent;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  try {
+    const saved = await dbAddIncome({ date, desc, notes, source, amount, type });
+    incomes.unshift(saved);
+    type==='income' ? clearIncomeForm() : clearWithdrawForm();
+    render();
+    toast((type==='income'?'Income':'Withdrawal')+' saved');
+  } catch(err){
+    toast('Save failed — '+err.message);
+    console.error(err);
+  }
+
+  btn.textContent = origText; btn.disabled = false;
+}
+
+function clearIncomeForm(){
+  document.getElementById('fi-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fi-desc').value = '';
+  document.getElementById('fi-notes').value = '';
+  document.getElementById('fi-amount').value = '';
+  document.getElementById('fi-source').selectedIndex = 0;
+}
+
+function clearWithdrawForm(){
+  document.getElementById('fw-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fw-desc').value = '';
+  document.getElementById('fw-notes').value = '';
+  document.getElementById('fw-amount').value = '';
+  document.getElementById('fw-source').selectedIndex = 0;
+}
+
+function openIncomeEdit(id){
+  const e = incomes.find(x=>x.id===id);
+  if(!e) return;
+  editingIncomeId = id;
+  document.getElementById('income-modal-title').textContent = e.type==='income'?'Edit Income Entry':'Edit Withdrawal';
+  document.getElementById('einc-date').value   = e.date;
+  document.getElementById('einc-desc').value   = e.desc;
+  document.getElementById('einc-notes').value  = e.notes||'';
+  document.getElementById('einc-source').value = e.source;
+  document.getElementById('einc-amount').value = e.amount;
+  document.getElementById('einc-type').value   = e.type;
+  document.getElementById('income-modal').classList.add('open');
+}
+
+async function saveIncomeEdit(){
+  const e = incomes.find(x=>x.id===editingIncomeId);
+  if(!e) return;
+  const updated = {
+    ...e,
+    date:   document.getElementById('einc-date').value,
+    desc:   document.getElementById('einc-desc').value.trim(),
+    notes:  document.getElementById('einc-notes').value.trim(),
+    source: document.getElementById('einc-source').value,
+    amount: parseFloat(document.getElementById('einc-amount').value)||0,
+    type:   document.getElementById('einc-type').value,
+  };
+  const saveBtn = document.querySelector('#income-modal .btn-primary');
+  saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+  try {
+    await dbUpdateIncome(updated);
+    Object.assign(e, updated);
+    closeIncomeModal();
+    render();
+    toast('Entry updated');
+  } catch(err){
+    toast('Update failed — '+err.message);
+    saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false;
+  }
+}
+
+function closeIncomeModal(){
+  document.getElementById('income-modal').classList.remove('open');
+  editingIncomeId = null;
+  const saveBtn = document.querySelector('#income-modal .btn-primary');
+  if(saveBtn){ saveBtn.textContent='Save Changes'; saveBtn.disabled=false; }
+}
+
+async function deleteIncome(id){
+  if(!confirm('Delete this entry?')) return;
+  try {
+    await dbDeleteIncome(id);
+    incomes = incomes.filter(i=>i.id!==id);
+    render();
+    toast('Entry deleted');
+  } catch(err){
+    toast('Delete failed — '+err.message);
+  }
+}
+
+// ══════════════════════════════════════════
+// RENDER INCOME TABLE
+// ══════════════════════════════════════════
+function renderIncomeTable(){
+  const search = (document.getElementById('inc-search')||{}).value?.toLowerCase()||'';
+  const typeF  = (document.getElementById('inc-filter-type')||{}).value||'';
+
+  let filtered = incomes.filter(i=>{
+    const matchSearch = i.desc.toLowerCase().includes(search)||(i.notes||'').toLowerCase().includes(search);
+    const matchType = !typeF || i.type===typeF;
+    return matchSearch && matchType;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('income-tbody');
+  const empty = document.getElementById('income-empty');
+  if(!tbody) return;
+
+  if(!filtered.length){
+    tbody.innerHTML='';
+    empty.style.display='block';
+    set('inc-filter-count','');
+    return;
+  }
+  empty.style.display='none';
+  set('inc-filter-count', filtered.length+' of '+incomes.length+' entries');
+
+  tbody.innerHTML = filtered.map(i=>{
+    const isIncome = i.type==='income';
+    return `<tr>
+      <td class="td-date">${fmtDate(i.date)}</td>
+      <td>
+        <div class="td-desc">${esc(i.desc)}</div>
+        ${i.notes?`<div class="td-sub">${esc(i.notes)}</div>`:''}
+      </td>
+      <td><span style="font-size:10.5px;color:var(--ink-soft)">${esc(i.source)}</span></td>
+      <td><span class="income-type-badge ${isIncome?'type-income':'type-withdraw'}">${isIncome?'Income':'Withdrawal'}</span></td>
+      <td style="text-align:right;font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;color:${isIncome?'var(--success)':'var(--warn)'}">
+        ${isIncome?'':'-'}${fmtINRFull(i.amount)}
+      </td>
+      <td class="td-actions">
+        <button class="row-btn" onclick="openIncomeEdit(${i.id})">Edit</button>
+        <button class="row-btn del" onclick="deleteIncome(${i.id})">Del</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// EXPORT INCOME CSV
+// ══════════════════════════════════════════
+function exportIncomeCSV(){
+  if(!incomes.length){ toast('No entries to export'); return; }
+  const header = ['Date','Description','Notes','Source','Type','Amount (₹)'];
+  const rows = incomes.map(i=>[
+    i.date,
+    '"'+i.desc.replace(/"/g,'""')+'"',
+    '"'+(i.notes||'').replace(/"/g,'""')+'"',
+    '"'+i.source.replace(/"/g,'""')+'"',
+    i.type,
+    (i.type==='withdrawal'?'-':'')+i.amount
+  ]);
+  const csv = [header,...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'HOC_CashFlow_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+  toast('CSV exported');
+}
+
 async function deleteExpense(id){
   if(!confirm('Delete this expense?')) return;
   try {
@@ -1175,6 +1722,9 @@ function toast(msg){
 // Close modal on overlay click
 document.getElementById('edit-modal').addEventListener('click',function(e){
   if(e.target===this) closeModal();
+});
+document.getElementById('income-modal').addEventListener('click',function(e){
+  if(e.target===this) closeIncomeModal();
 });
 
 // ══════════════════════════════════════════
