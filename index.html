@@ -1398,89 +1398,33 @@ function renderTable(){
   empty.style.display='none';
   set('filter-count', filtered.length+' of '+expenses.length+' entries');
 
-  // Group by payer type: company first, then individual
-  const companyRows = filtered.filter(e=>e.exptype==='company');
-  const indivRows   = filtered.filter(e=>e.exptype==='individual');
-
-  function makeRows(rows){
-    return rows.map(e=>{
-      const c = catObj(e.cat);
-      const pillClass = e.status==='approved'?'pill-approved':e.status==='rejected'?'pill-rejected':'pill-pending';
-      const reimbPill = reimbPillHtml(e);
-      const isIndiv   = e.exptype==='individual';
-      return `<tr style="${isIndiv?'background:rgba(90,74,138,.025)':''}">
-        <td class="td-date">${fmtDate(e.date)}</td>
-        <td>
-          <div style="margin-bottom:2px">
-            <span class="payer-badge ${isIndiv?'payer-individual':'payer-company'}">${isIndiv?'Individual':'Company'}</span>
-          </div>
-          <div class="td-desc">${esc(e.desc)}</div>
-          ${e.notes?`<div class="td-sub">${esc(e.notes)}</div>`:''}
-        </td>
-        <td><span class="td-cat"><span style="width:6px;height:6px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0"></span>${c.label}</span></td>
-        <td><span style="font-size:10.5px;color:var(--ink-soft)">${esc(e.paidby)}</span></td>
-        <td class="td-amt">${fmtINRFull(e.amount)}</td>
-        <td style="text-align:right">
-          <span class="pill ${pillClass}" onclick="toggleStatus(${e.id})" title="Click to cycle status">${e.status}</span>
-        </td>
-        <td style="text-align:right">${reimbPill}</td>
-        <td class="td-actions">
-          <button class="row-btn" onclick="openEdit(${e.id})">Edit</button>
-          <button class="row-btn del" onclick="deleteExpense(${e.id})">Del</button>
-        </td>
-      </tr>`;
-    }).join('');
-  }
-
-  let html = '';
-  if(companyRows.length){
-    const total = companyRows.reduce((s,e)=>s+e.amount,0);
-    html += `<tr class="payer-group-header" onclick="toggleGroup('grp-company')">
-      <td colspan="8">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div class="payer-group-title">
-            <span class="payer-badge payer-company">Company</span>
-            ${companyRows.length} expense${companyRows.length!==1?'s':''}
-          </div>
-          <div class="payer-group-meta">
-            <span>${fmtINRFull(total)}</span>
-            <span class="payer-group-chevron open" id="chev-grp-company">▾</span>
-          </div>
+  tbody.innerHTML = filtered.map(e=>{
+    const c = catObj(e.cat);
+    const pillClass = e.status==='approved'?'pill-approved':e.status==='rejected'?'pill-rejected':'pill-pending';
+    const reimbPill = reimbPillHtml(e);
+    const isIndiv   = e.exptype==='individual';
+    return `<tr style="${isIndiv?'background:rgba(90,74,138,.025)':''}">
+      <td class="td-date">${fmtDate(e.date)}</td>
+      <td>
+        <div style="margin-bottom:2px">
+          <span class="payer-badge ${isIndiv?'payer-individual':'payer-company'}">${isIndiv?'Individual':'Company'}</span>
         </div>
+        <div class="td-desc">${esc(e.desc)}</div>
+        ${e.notes?`<div class="td-sub">${esc(e.notes)}</div>`:''}
+      </td>
+      <td><span class="td-cat"><span style="width:6px;height:6px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0"></span>${c.label}</span></td>
+      <td><span style="font-size:10.5px;color:var(--ink-soft)">${esc(e.paidby)}</span></td>
+      <td class="td-amt">${fmtINRFull(e.amount)}</td>
+      <td style="text-align:right">
+        <span class="pill ${pillClass}" onclick="toggleStatus(${e.id})" title="Click to cycle status">${e.status}</span>
+      </td>
+      <td style="text-align:right">${reimbPill}</td>
+      <td class="td-actions">
+        <button class="row-btn" onclick="openEdit(${e.id})">Edit</button>
+        <button class="row-btn del" onclick="deleteExpense(${e.id})">Del</button>
       </td>
     </tr>`;
-    html += `<tbody id="grp-company" class="payer-group-rows open">${makeRows(companyRows)}</tbody>`;
-  }
-  if(indivRows.length){
-    const total = indivRows.reduce((s,e)=>s+e.amount,0);
-    const pendAmt = indivRows.filter(e=>e.reimbStatus==='pending').reduce((s,e)=>s+e.amount,0);
-    html += `<tr class="payer-group-header" onclick="toggleGroup('grp-indiv')">
-      <td colspan="8">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div class="payer-group-title">
-            <span class="payer-badge payer-individual">Individual</span>
-            ${indivRows.length} expense${indivRows.length!==1?'s':''}
-            ${pendAmt>0?`<span style="font-size:8px;color:#5A4A8A;font-weight:400">${fmtINR(pendAmt)} pending reimbursement</span>`:''}
-          </div>
-          <div class="payer-group-meta">
-            <span>${fmtINRFull(total)}</span>
-            <span class="payer-group-chevron open" id="chev-grp-indiv">▾</span>
-          </div>
-        </div>
-      </td>
-    </tr>`;
-    html += `<tbody id="grp-indiv" class="payer-group-rows open">${makeRows(indivRows)}</tbody>`;
-  }
-
-  tbody.innerHTML = html;
-}
-
-function toggleGroup(id){
-  const el   = document.getElementById(id);
-  const chev = document.getElementById('chev-'+id);
-  if(!el) return;
-  el.classList.toggle('open');
-  if(chev) chev.classList.toggle('open');
+  }).join('');
 }
 
 function reimbPillHtml(e){
